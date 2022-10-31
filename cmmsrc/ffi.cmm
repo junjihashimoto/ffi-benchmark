@@ -1,0 +1,281 @@
+/* -*- tab-width: 8 -*- */
+/* -----------------------------------------------------------------------------
+ *
+ * (c) The GHC Team, 1998-2012
+ *
+ * Out-of-line primitive operations
+ *
+ * This file contains the implementations of all the primitive
+ * operations ("primops") which are not expanded inline.  See
+ * ghc/compiler/GHC/Builtin/primops.txt.pp for a list of all the primops;
+ * this file contains code for most of those with the attribute
+ * out_of_line=True.
+ *
+ * Entry convention: the entry convention for a primop is the
+ * NativeNodeCall convention, and the return convention is
+ * NativeReturn.  (see compiler/GHC/Cmm/CallConv.hs)
+ *
+ * This file is written in a subset of C--, extended with various
+ * features specific to GHC.  It is compiled by GHC directly.  For the
+ * syntax of .cmm files, see the parser in ghc/compiler/GHC/Cmm/Parser.y.
+ *
+ * ---------------------------------------------------------------------------*/
+
+#include "Cmm.h"
+#include "MachDeps.h"
+//#include "SMP/ClosureOps.h"
+
+#define LOCK_CLOSURE(closure, info)                             \
+    if (CInt[n_capabilities] == 1 :: CInt) {                    \
+        info = GET_INFO(closure);                               \
+    } else {                                                    \
+        ("ptr" info) = ccall reallyLockClosure(closure "ptr");  \
+    }
+
+#define unlockClosure(ptr,info)                 \
+    prim_write_barrier;                         \
+    StgHeader_info(ptr) = info;
+
+
+myAddCFinalizzerToWeak1zh ( W_ fptr,   // finalizer
+                             W_ ptr,
+                             W_ flag,   // has environment (0 or 1)
+                             W_ eptr,
+                             gcptr w )
+{
+    W_ c, info;
+
+    ALLOC_PRIM (SIZEOF_StgCFinalizerList)
+
+    c = Hp - SIZEOF_StgCFinalizerList + WDS(1);
+    SET_HDR(c, stg_C_FINALIZER_LIST_info, CCCS);
+
+    StgCFinalizerList_fptr(c) = fptr;
+    StgCFinalizerList_ptr(c) = ptr;
+    StgCFinalizerList_eptr(c) = eptr;
+    StgCFinalizerList_flag(c) = flag;
+
+    LOCK_CLOSURE(w, info);
+
+    if (info == stg_DEAD_WEAK_info) {
+        // Already dead.
+        unlockClosure(w, info);
+        return (0);
+    }
+
+    // Write barrier for concurrent non-moving collector
+    updateRemembSetPushPtr(StgWeak_cfinalizers(w))
+
+    StgCFinalizerList_link(c) = StgWeak_cfinalizers(w);
+    StgWeak_cfinalizers(w) = c;
+
+    unlockClosure(w, info);
+
+    recordMutable(w);
+
+    IF_DEBUG(weak, ccall debugBelch("Adding a finalizer to %p\n",w));
+
+    return (1);
+}
+
+myAddCFinalizzerToWeak2zh ( W_ fptr,   // finalizer
+                             W_ ptr,
+                             W_ flag,   // has environment (0 or 1)
+                             W_ eptr,
+                             gcptr w )
+{
+    W_ c, info;
+
+    ALLOC_PRIM (SIZEOF_StgCFinalizerList)
+
+    c = Hp - SIZEOF_StgCFinalizerList + WDS(1);
+    SET_HDR(c, stg_C_FINALIZER_LIST_info, CCCS);
+
+    StgCFinalizerList_fptr(c) = fptr;
+    StgCFinalizerList_ptr(c) = ptr;
+    StgCFinalizerList_eptr(c) = eptr;
+    StgCFinalizerList_flag(c) = flag;
+
+    LOCK_CLOSURE(w, info);
+
+    if (info == stg_DEAD_WEAK_info) {
+        // Already dead.
+        unlockClosure(w, info);
+        return (0);
+    }
+
+    // Write barrier for concurrent non-moving collector
+//    updateRemembSetPushPtr(StgWeak_cfinalizers(w))
+
+    StgCFinalizerList_link(c) = StgWeak_cfinalizers(w);
+    StgWeak_cfinalizers(w) = c;
+
+    unlockClosure(w, info);
+
+    recordMutable(w);
+
+    IF_DEBUG(weak, ccall debugBelch("Adding a finalizer to %p\n",w));
+
+    return (1);
+}
+
+myAddCFinalizzerToWeak3zh ( W_ fptr,   // finalizer
+                             W_ ptr,
+                             W_ flag,   // has environment (0 or 1)
+                             W_ eptr,
+                             gcptr w )
+{
+    W_ c, info;
+
+    ALLOC_PRIM (SIZEOF_StgCFinalizerList)
+
+    c = Hp - SIZEOF_StgCFinalizerList + WDS(1);
+    SET_HDR(c, stg_C_FINALIZER_LIST_info, CCCS);
+
+    StgCFinalizerList_fptr(c) = fptr;
+    StgCFinalizerList_ptr(c) = ptr;
+    StgCFinalizerList_eptr(c) = eptr;
+    StgCFinalizerList_flag(c) = flag;
+
+    LOCK_CLOSURE(w, info);
+
+    if (info == stg_DEAD_WEAK_info) {
+        // Already dead.
+        unlockClosure(w, info);
+        return (0);
+    }
+
+    // Write barrier for concurrent non-moving collector
+//    updateRemembSetPushPtr(StgWeak_cfinalizers(w))
+
+    StgCFinalizerList_link(c) = StgWeak_cfinalizers(w);
+    StgWeak_cfinalizers(w) = c;
+
+    unlockClosure(w, info);
+
+//    recordMutable(w);
+
+    IF_DEBUG(weak, ccall debugBelch("Adding a finalizer to %p\n",w));
+
+    return (1);
+}
+
+/* mkCFinalizerList(W_ fptr,   // finalizer */
+/* 		 W_ ptr, */
+/* 		 W_ flag,   // has environment (0 or 1) */
+/* 		 W_ eptr) */
+/* { */
+/*     W_ c; */
+/*     ALLOC_PRIM (SIZEOF_StgCFinalizerList) */
+/*     c = Hp - SIZEOF_StgCFinalizerList + WDS(1); */
+/*     SET_HDR(c, stg_C_FINALIZER_LIST_info, CCCS); */
+/*     StgCFinalizerList_fptr(c) = fptr; */
+/*     StgCFinalizerList_ptr(c) = ptr; */
+/*     StgCFinalizerList_eptr(c) = eptr; */
+/*     StgCFinalizerList_flag(c) = flag; */
+/*     StgCFinalizerList_link(c) = stg_NO_FINALIZER_closure; */
+/*     return (c); */
+/*  } */
+
+
+/* mkWeakWithCFinalizerzh ( gcptr key, */
+/* 			 gcptr value, */
+/* 			 W_ fptr,   // finalizer */
+/* 			 W_ ptr, */
+/* 			 W_ flag,   // has environment (0 or 1) */
+/* 			 W_ eptr) */
+/* { */
+/*     gcptr w; */
+/*     (W_ c) = call mkCFinalizerList (fptr, ptr, flag, eptr); */
+/*     ALLOC_PRIM (SIZEOF_StgWeak) */
+/*     w = Hp - SIZEOF_StgWeak + WDS(1); */
+/*     SET_HDR(w, stg_WEAK_info, CCCS); */
+/*     StgWeak_key(w)         = key; */
+/*     StgWeak_value(w)       = value; */
+/*     StgWeak_finalizer(w)   = stg_NO_FINALIZER_closure; */
+/*     StgWeak_cfinalizers(w) = c; */
+/*     StgWeak_link(w) = Capability_weak_ptr_list_hd(MyCapability()); */
+/*     Capability_weak_ptr_list_hd(MyCapability()) = w; */
+/*     if (Capability_weak_ptr_list_tl(MyCapability()) == NULL) { */
+/*         Capability_weak_ptr_list_tl(MyCapability()) = w; */
+/*     } */
+
+/*     IF_DEBUG(weak, ccall debugBelch("New weak pointer at %p\n",w)); */
+
+/*     return (w); */
+/* } */
+
+mkWeakWithCFinalizerzh ( gcptr key,
+			 gcptr value,
+			 W_ fptr,   // finalizer
+			 W_ ptr,
+			 W_ flag,   // has environment (0 or 1)
+			 W_ eptr)
+{
+    gcptr w;
+    W_ c;
+
+    ALLOC_PRIM (SIZEOF_StgWeak)
+    w = Hp - SIZEOF_StgWeak + WDS(1);
+    SET_HDR(w, stg_WEAK_info, CCCS);
+    StgWeak_key(w)         = key;
+    StgWeak_value(w)       = value;
+    StgWeak_finalizer(w)   = stg_NO_FINALIZER_closure;
+    StgWeak_cfinalizers(w) = stg_NO_FINALIZER_closure;
+
+    ALLOC_PRIM (SIZEOF_StgCFinalizerList)
+    c = Hp - SIZEOF_StgCFinalizerList + WDS(1);
+    SET_HDR(c, stg_C_FINALIZER_LIST_info, CCCS);
+    StgCFinalizerList_fptr(c) = fptr;
+    StgCFinalizerList_ptr(c) = ptr;
+    StgCFinalizerList_eptr(c) = eptr;
+    StgCFinalizerList_flag(c) = flag;
+
+    StgCFinalizerList_link(c) = StgWeak_cfinalizers(w);
+    StgWeak_cfinalizers(w) = c;
+    StgWeak_link(w) = Capability_weak_ptr_list_hd(MyCapability());
+    Capability_weak_ptr_list_hd(MyCapability()) = w;
+    if (Capability_weak_ptr_list_tl(MyCapability()) == NULL) {
+        Capability_weak_ptr_list_tl(MyCapability()) = w;
+    }
+
+    IF_DEBUG(weak, ccall debugBelch("New weak pointer at %p\n",w));
+    IF_DEBUG(weak, ccall debugBelch("Adding a finalizer to %p\n",w));
+
+    return (w);
+}
+
+
+myMkWeakzh ( gcptr key,
+	     gcptr value,
+	     gcptr finalizer /* or stg_NO_FINALIZER_closure */ )
+{
+    gcptr w;
+
+    ALLOC_PRIM (SIZEOF_StgWeak)
+
+    w = Hp - SIZEOF_StgWeak + WDS(1);
+    // No memory barrier needed as this is a new allocation.
+    SET_HDR(w, stg_WEAK_info, CCCS);
+
+    StgWeak_key(w)         = key;
+    StgWeak_value(w)       = value;
+    StgWeak_finalizer(w)   = finalizer;
+    StgWeak_cfinalizers(w) = stg_NO_FINALIZER_closure;
+
+    StgWeak_link(w) = Capability_weak_ptr_list_hd(MyCapability());
+    Capability_weak_ptr_list_hd(MyCapability()) = w;
+    if (Capability_weak_ptr_list_tl(MyCapability()) == NULL) {
+        Capability_weak_ptr_list_tl(MyCapability()) = w;
+    }
+
+    IF_DEBUG(weak, ccall debugBelch("New weak pointer at %p\n",w));
+
+    return (w);
+}
+
+myMkWeakNoFinalizzerzh ( gcptr key, gcptr value )
+{
+    jump myMkWeakzh (key, value, stg_NO_FINALIZER_closure);
+}
+

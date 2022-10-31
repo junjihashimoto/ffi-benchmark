@@ -1,0 +1,7 @@
+packages:
+    *.cabal
+
+optimization: True
+debug-info: True
+profiling: True
+profiling-detail: all-functions
